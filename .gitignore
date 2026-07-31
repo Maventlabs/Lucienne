@@ -1,0 +1,39 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+env/
+venv/
+ENV/
+.venv/
+
+# Env
+.env
+.env.local
+.env.*.local
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Workspace & Memory (runtime data)
+workspace/*
+!workspace/.gitkeep
+memory/*
+!memory/.gitkeep
+
+# MCP config (may contain secrets)
+mcp_config.json
+
+# Logs
+*.log
+logs/

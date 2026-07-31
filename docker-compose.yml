@@ -1,0 +1,38 @@
+services:
+  lucienne-bridge:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: lucienne-bridge
+    env_file:
+      - .env
+    environment:
+      - PYTHONPATH=/app
+    volumes:
+      # Workspace (persistent)
+      - lucienne-workspace:/app/workspace
+      # Memory (persistent)
+      - lucienne-memory:/app/memory
+      # Skills from host (read-only, auto-scanned)
+      - C:/Users/USER/.agents/skills:/opt/skills:ro
+      # Soul (read-write)
+      - ./soul:/app/soul
+      # MCP config
+      - ./mcp_config.json:/app/mcp_config.json:ro
+      # Docker socket (for OpenHands to spawn runtime containers)
+      - /var/run/docker.sock:/var/run/docker.sock
+    ports:
+      - "3000:3000"
+    networks:
+      - lucienne-net
+    restart: unless-stopped
+    stdin_open: true
+    tty: true
+
+volumes:
+  lucienne-workspace:
+  lucienne-memory:
+
+networks:
+  lucienne-net:
+    driver: bridge
