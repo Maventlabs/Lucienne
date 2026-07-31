@@ -16,6 +16,7 @@ import uuid
 from typing import Any, Callable, Coroutine, Dict, List, Optional
 
 from openhands.sdk import Conversation, Agent
+from openhands.sdk.llm import LLM
 from openhands.sdk.event.base import Event
 
 from core.personality_engine import PersonalityEngine
@@ -87,13 +88,13 @@ class LucienneRunner:
     async def init(self) -> bool:
         """Initialize runner: create agent, conversation, enable safety."""
         try:
-            # Create agent — OpenHands SDK requires `llm` config object
+            # Create agent — OpenHands SDK requires LLM object
             self.agent = Agent(
-                llm={
-                    "model": self.model,
-                    "api_key": self.api_key,
-                    "base_url": self.base_url,
-                },
+                llm=LLM(
+                    model=self.model,
+                    api_key=self.api_key,
+                    base_url=self.base_url,
+                ),
             )
 
             # Build system prompt with SOUL + memory + skills + MCP
@@ -107,7 +108,7 @@ class LucienneRunner:
 
             # Enable confirmation policy (safety layer 1)
             if hasattr(self.conversation, "set_confirmation_policy"):
-                self.conversation.set_confirmation_policy(enabled=True)
+                self.conversation.set_confirmation_policy()
 
             # Send system prompt as first message
             await self._send_system_context(system_prompt)
@@ -194,12 +195,35 @@ class LucienneRunner:
         except Exception as e:
             return f"❌ Execution error: {e}"
 
-        # Get response (OpenHands will stream via callback)
-        # For non-streaming, we need to capture the final response
-        # This is a simplified version; in production, response comes via callback
-        response = "⚡ Processing... Check status for updates."
+        # Get response from conversation events
+        response = self._extract_agent_response()
 
         self.memory.add_message("assistant", response, {"user_id": user_id})
+        return response
+
+    def _extract_agent_response(self) -> str:
+        """Extract the last agent text response from conversation events."""
+        from openhands.sdk.event import MessageEvent
+        from openhands.sdk.llm.message import content_to_str
+
+        if not self.conversation:
+            return "❌ No active conversation."
+
+        events = self.conversation.state.events
+        agent_messages = [
+            e for e in events
+            if isinstance(e, MessageEvent) and e.source == "agent"
+        ]
+        if not agent_messages:
+            return "⚡ OpenHands agent processed your message but produced no text response."
+
+        last_msg = agent_messages[-1]
+        text_parts = content_to_str(last_msg.llm_message.content)
+        response = "".join(text_parts).strip()
+
+        if not response:
+            return "⚡ OpenHands agent responded with no text content."
+
         return response
 
     async def _maybe_enrich_with_search(self, message: str) -> str:
